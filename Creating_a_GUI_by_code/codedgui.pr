@@ -1,0 +1,20 @@
+program codedgui;
+
+{$MODE DELPHI}{$H+}
+
+uses
+  Interfaces, Forms, StdCtrls,
+  mainform;
+
+var
+  MyForm: TMyForm;
+begin
+  // Application.Initialize;
+  // Application.CreateNewForm(TMyForm, MyForm);
+  MyForm := TMyForm.CreateNew(Application);
+  MyForm.Show;
+  // The compiler reports: Form resource TMyForm not found. For resourceless forms CreateNew constructor must be used. See the global variable RequireDerivedFormResource.
+  // This can be fixed by adding the following line:
+  // RequireDerivedFormResource := False;
+  Application.Run;
+end.
