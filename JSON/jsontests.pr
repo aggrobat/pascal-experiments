@@ -1,0 +1,92 @@
+program JsonTests;
+
+{$mode objfpc}{$H+}
+
+uses
+  opensslsockets,
+  fpjson,
+  jsonparser,
+  Variants,
+  fphttpclient
+;
+  
+var
+  HttpClient: TFPHTTPClient;
+  i: integer;
+  RawJson: string;
+  Url: string;
+  jData : TJSONData;
+  UsersObject: TJSONObject;
+  // OneUserObject: TJSONObject;
+  OneUserObject: TJSONData;
+  UserId: String;
+  jItem : TJSONData;
+
+begin
+  // HttpClient erstellen
+  HttpClient := TFPHttpClient.Create(nil);
+
+  // Redirects erlauben
+  HttpClient.AllowRedirect := True;
+
+  try
+    try
+      // Username und Passwort
+      HttpClient.UserName := 'syndesk.pze';
+      HttpClient.Password := 'cHvs4W#Czm3Q';
+
+      // Request an URL, JSON-Response speichern
+      // Url := 'https://api.syndesk.de/ptt/monitor';
+      Url := 'https://itsyn40.syndesk.de/assets/TMP_EMP.json';
+      RawJson := HttpClient.Get(Url);
+    except
+      // Fehler vom Typ EHttpClient geworfen
+      on E: EHttpClient do
+      begin
+        //EventLog.Debug(E.Message);
+        Exit;
+      end
+      // Unbehandelte Fehler mit weiterer Exception werfen und
+      // in übergeordnetes Finally springen
+      else
+      begin
+        //EventLog.Debug('Raise');
+        raise;
+      end;
+    end;
+  finally
+    // In Jedem Falle die Objekte wieder freigeben
+    HttpClient.Free;
+  end;
+
+  { Tests auf JSON-Datentypen und -Funktionen }
+
+  // WriteLn(RawJson); // Ganzer JSON-String, unformatiert
+  jData := GetJSON(RawJson);
+  // WriteLn(jData); // jsontests.pr(56,16) Error: Can`t read or write variables of this type
+  // WriteLn(jData.AsJSON); // EJSON: No JSON parser handler installed. Recompile your project with the jsonparser unit included. After inclusion: Output same as above
+  // Versuch: Zugriff auf einzelnes Element von jData:
+  // WriteLn(jData[1].AsJSON); // jsontests.pr(60,16) Error: No default property available jsontests.pr(60,16) Fatal: Syntax error, ")" expected but "[" found
+  // WriteLn(jData.items[1].FormatJSON); // Zugriff nicht wie Array mit jData[1], sondern mit jData.items[1] !!!
+  // WriteLn(jData.Count); // 29
+  
+  UsersObject := TJSONObject.Create;
+
+  // Schleife über alle Elemente
+  for i := 0 to jData.Count - 1 do
+  begin
+  jItem := jData.items[i];
+  // UserId := jItem.Get('USER_ID'); // Error: identifier idents no member "Get" -- weil: jItem ist TJSONData, nicht TJSONObject
+  UserId := jItem.FindPath('USER_ID').AsString;
+  // WriteLn(jData.items[i].ClassName); // TJSONObject
+  UsersObject.Add(UserId, TJSONObject(jItem)); // Casting alternativ: jObject := jData as TJSONObject;
+  end;
+  // WriteLn(UsersObject.FormatJSON); // Ausgabe aller User-Objekte, OK
+  // WriteLn(VarToStr(UsersObject.Get('93016').Get('USER_DISPLAY_NAME', 'Standardwert'))); // EJSON: Cannot convert data from object value
+  //  OneUserObject := UsersObject.Get('93016'); // Error: Incompatible types: got "Variant" expected "TJSONObject"
+  WriteLn(UsersObject.Find('93016').ClassName); // TJSONObject
+  OneUserObject := UsersObject.Find('93016'); // Error: Incompatible types: got "TJSONData" expected "TJSONObject"
+WriteLn(OneUserObject.ClassName); // TJSONObject
+  WriteLn(TJSONObject(OneUserObject).Get('USER_DISPLAY_NAME'));
+  jData.Free;
+end.
