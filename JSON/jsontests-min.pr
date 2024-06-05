@@ -18,7 +18,6 @@ var
   jData : TJSONData;
   UsersObject: TJSONObject;
   AuthKeys: TJSONObject;
-  // OneUserObject: TJSONObject;
   OneUserObject: TJSONData;
   UserId: String;
   jItem : TJSONData;
@@ -26,52 +25,34 @@ var
   JSONOutput: String;
 
 begin
-  // HttpClient erstellen
   HttpClient := TFPHttpClient.Create(nil);
 
-  // Redirects erlauben
   HttpClient.AllowRedirect := True;
 
   try
     try
-      // Username und Passwort
       HttpClient.UserName := 'syndesk.pze';
       HttpClient.Password := 'cHvs4W#Czm3Q';
 
-      // Request an URL, JSON-Response speichern
       Url := 'https://api.syndesk.de/ptt/monitor';
-      // Url := 'https://itsyn40.syndesk.de/assets/TMP_EMP.json';
       RawJson := HttpClient.Get(Url);
     except
-      // Fehler vom Typ EHttpClient geworfen
       on E: EHttpClient do
       begin
-        //EventLog.Debug(E.Message);
         Exit;
       end
-      // Unbehandelte Fehler mit weiterer Exception werfen und
-      // in übergeordnetes Finally springen
       else
       begin
-        //EventLog.Debug('Raise');
         raise;
       end;
     end;
   finally
-    // In Jedem Falle die Objekte wieder freigeben
     HttpClient.Free;
   end;
 
   { Tests auf JSON-Datentypen und -Funktionen }
 
-  // WriteLn(RawJson); // Ganzer JSON-String, unformatiert
   jData := GetJSON(RawJson);
-  // WriteLn(jData); // jsontests.pr(56,16) Error: Can`t read or write variables of this type
-  // WriteLn(jData.AsJSON); // EJSON: No JSON parser handler installed. Recompile your project with the jsonparser unit included. After inclusion: Output same as above
-  // Versuch: Zugriff auf einzelnes Element von jData:
-  // WriteLn(jData[1].AsJSON); // jsontests.pr(60,16) Error: No default property available jsontests.pr(60,16) Fatal: Syntax error, ")" expected but "[" found
-  // WriteLn(jData.items[1].FormatJSON); // Zugriff nicht wie Array mit jData[1], sondern mit jData.items[1] !!!
-  // WriteLn(jData.Count); // 29
 
   
 { Initialisierung von UsersObject und AuthKeys } 
@@ -85,51 +66,33 @@ AuthKeys := TJSONObject.Create;
   for i := 0 to jData.Count - 1 do
   begin
   jItem := jData.items[i];
-  // UserId := jItem.Get('USER_ID'); // Error: identifier idents no member "Get" -- weil: jItem ist TJSONData, nicht TJSONObject
   try UserId := jItem.FindPath('USER_ID').AsString; // EJSON: Duplicate object member: "b5265925" -- weil: AUTH_KEY ist nicht eindeutig
   except on E: EJSON do 
     WriteLn('Error: ' + E.Message);
-    // UserId := jItem.FindPath('USER_ID').AsString;
   end;
-  // WriteLn(jData.items[i].ClassName); // TJSONObject
-  // Ergänzung zu UsersObject
   UsersObject.Add(UserId, TJSONObject(jItem)); // Casting alternativ: jObject := jData as TJSONObject;
-  // Ergänzung zu AuthKeys
   try AuthKeys.Add(jItem.FindPath('AUTH_KEY').AsString, jItem.FindPath('USER_ID').AsString);
   except on E: EJSON do 
   continue;
   end;
-  // WriteLn(UsersObject.FormatJSON); // Ausgabe aller User-Objekte, OK
   end;
 
 
 { Formatiertes JSON speichern in UsersObject.txt }
 
-  // Get the JSON output
   JSONOutput := UsersObject.FormatJSON;
 
-  // Assign a file name
   AssignFile(F, 'usersobject.txt');
 
-  // Try to rewrite the file for writing
   Rewrite(F);
 
-  // Write the JSON output to the file
   WriteLn(F, JSONOutput);
 
-  // Close the file
   CloseFile(F);
 
-  // WriteLn(VarToStr(UsersObject.Get('93016').Get('USER_DISPLAY_NAME', 'Standardwert'))); // EJSON: Cannot convert data from object value
-  // OneUserObject := UsersObject.Get('93016'); // Error: Incompatible types: got "Variant" expected "TJSONObject"
-  WriteLn(UsersObject.Find('118964').FormatJSON); // OK
-  // WriteLn(AuthKeys.FormatJSON); // OK
   WriteLn('In AuthKeys: ' + AuthKeys.Find('b5265925').FormatJSON);  // b5265925
   if AuthKeys.Find('b5265925').FormatJSON = '2493' then WriteLn('OK') else WriteLn('NOK'); // Test Equality, Result: NOK because of leading and trailing double quotes
   if AuthKeys.Find('b5265925').FormatJSON = '"2493"' then WriteLn('OK') else WriteLn('NOK'); // Test Equality, Result:OK
    if AuthKeys.Find('b5265925').AsString = '2493' then WriteLn('AsString: OK') else WriteLn('NOK'); // Test Equality, Result:OK
-  // OneUserObject := UsersObject.Find('93016'); // Error: Incompatible types: got "TJSONData" expected "TJSONObject"
-  // WriteLn(OneUserObject.ClassName); // TJSONObject
-  // WriteLn(TJSONObject(OneUserObject).Get('USER_DISPLAY_NAME'));
   jData.Free;
 end.
